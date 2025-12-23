@@ -1,4 +1,4 @@
-# Git Server POC
+# Git Server PoC
 
 This repository contains a proof of concept for a Git server using Ceph as
 object storage and PostgreSQL as database. It currently explores only the data
