@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VM_NAME="ceph-dev"
+VM_NAME="devenv"
 
 echo "Installing MicroCeph on '$VM_NAME'..."
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VM_NAME="ceph-dev"
+VM_NAME="devenv"
 DB_USER="git_user"
 DB_PASS="git_password"
 DB_NAME="git_server"
@@ -70,5 +70,6 @@ fi
 
 # Get Connection Info
 VM_IP=$(multipass info "$VM_NAME" | grep IPv4 | awk '{print $2}')
+
 echo "PostgreSQL setup complete."
-echo "Connection String: postgres://$DB_USER:$DB_PASS@$VM_IP:5432/$DB_NAME"
+echo "Connection String: postgres://$DB_USER:$DB_PASS@$VM_IP:5432/$DB_NAME?sslmode=disable"

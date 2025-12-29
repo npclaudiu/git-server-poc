@@ -1,0 +1,12 @@
+server:
+  host: localhost
+  port: 8080
+log:
+  level: info
+database:
+  host: "localhost"
+  port: 5432
+  user: "git_user"
+  password: "git_password"
+  dbname: "git_server"
+  sslmode: "disable"

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VM_NAME="ceph-dev"
+VM_NAME="devenv"
 USER_ID="dev-user"
 DISPLAY_NAME="Dev User"
 

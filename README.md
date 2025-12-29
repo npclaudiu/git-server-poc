@@ -2,8 +2,9 @@
 
 This repository contains a proof of concept for a Git server using Ceph as
 object storage and PostgreSQL as database. It currently explores only the data
-ingestion process (the [`git-receive-pack` protocol over
-HTTP](https://git-scm.com/docs/http-protocol#_smart_service_git_receive_pack)).
+ingestion process (the
+[`git-receive-pack`](https://git-scm.com/docs/http-protocol#_smart_service_git_receive_pack)
+protocol over HTTP).
 
 ## Quick Start
 

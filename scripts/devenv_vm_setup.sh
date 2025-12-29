@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VM_NAME="ceph-dev"
+VM_NAME="devenv"
 CPUS="4"
 MEMORY="8G"
 DISK="20G"
