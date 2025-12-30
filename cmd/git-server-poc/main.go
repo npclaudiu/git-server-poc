@@ -3,91 +3,73 @@ package main
 import (
 	"context"
 	"log/slog"
-	"net"
-	"net/http"
 	"os"
-	"sync"
-	"time"
+	"os/signal"
+	"syscall"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/npclaudiu/git-server-poc/internal/config"
 	"github.com/npclaudiu/git-server-poc/internal/metastore"
+	"github.com/npclaudiu/git-server-poc/internal/objectstore"
+	"github.com/npclaudiu/git-server-poc/internal/server"
 )
-
-func run(ctx context.Context, cfg *config.Config, ms *metastore.Metastore) error {
-	r := chi.NewRouter()
-
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-
-	httpServer := &http.Server{
-		Addr:    net.JoinHostPort(cfg.Server.Host, cfg.Server.Port),
-		Handler: r,
-	}
-
-	go func() {
-		slog.Info("git-server-poc listening", "addr", httpServer.Addr)
-
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("error listening and serving", "err", err)
-		}
-	}()
-
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		<-ctx.Done()
-
-		slog.Info("shutting down server")
-
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := httpServer.Shutdown(shutdownCtx); err != nil {
-			slog.Error("failed to shut down git-server-poc", "err", err)
-		}
-
-		slog.Info("closing database connection")
-		ms.Close()
-	}()
-
-	wg.Wait()
-
-	return nil
-}
 
 func main() {
 	ctx := context.Background()
+
 	cfg, err := config.Load()
 	if err != nil {
 		slog.New(slog.NewJSONHandler(os.Stderr, nil)).Error("failed to load config", "err", err)
 		os.Exit(1)
 	}
 
-	var lvl slog.Level
-	if err := lvl.UnmarshalText([]byte(cfg.Log.Level)); err != nil {
-		lvl = slog.LevelInfo
+	var logLevel slog.Level
+	if err := logLevel.UnmarshalText([]byte(cfg.Log.Level)); err != nil {
+		logLevel = slog.LevelInfo
 		slog.New(slog.NewJSONHandler(os.Stderr, nil)).Warn("invalid log level in config, defaulting to info", "level", cfg.Log.Level, "err", err)
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: lvl}))
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 	slog.SetDefault(logger)
 
-	ms, err := metastore.New(ctx, cfg.Database)
+	metaStore, err := metastore.New(ctx, metastore.Options{
+		Host:     cfg.MetaStore.Host,
+		Port:     cfg.MetaStore.Port,
+		User:     cfg.MetaStore.User,
+		Password: cfg.MetaStore.Password,
+		DBName:   cfg.MetaStore.DBName,
+		SSLMode:  cfg.MetaStore.SSLMode,
+	})
 	if err != nil {
 		slog.Error("failed to create metastore", "err", err)
 		os.Exit(1)
 	}
-	defer ms.Close()
+	defer metaStore.Close()
 
-	if err := run(ctx, cfg, ms); err != nil {
-		slog.Error("runtime error", "err", err)
+	objStore, err := objectstore.New(ctx, objectstore.Options{
+		Endpoint:  cfg.ObjectStore.Endpoint,
+		AccessKey: cfg.ObjectStore.AccessKeyID,
+		SecretKey: cfg.ObjectStore.SecretAccessKey,
+		Bucket:    cfg.ObjectStore.Bucket,
+		Region:    cfg.ObjectStore.Region,
+	})
+	if err != nil {
+		slog.Error("failed to create object store", "err", err)
+		os.Exit(1)
+	}
+
+	srv := server.New(cfg, metaStore, objStore)
+
+	if err := srv.Run(); err != nil {
+		slog.Error("failed to run server", "err", err)
+		os.Exit(1)
+	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("failed to shutdown server", "err", err)
 		os.Exit(1)
 	}
 }

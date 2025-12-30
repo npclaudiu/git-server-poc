@@ -6,12 +6,16 @@ RUN apt-get update && \
     apt-get install -y \
     snapd \
     fuse \
-    squashfuse
+    squashfuse \
+    systemd
 
-# This is the entrypoint that will start snapd and then execute the command
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY setup.sh /usr/local/bin/setup.sh
+RUN chmod +x /usr/local/bin/setup.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["tail", "-f", "/dev/null"]
+COPY microceph-setup.service /etc/systemd/system/microceph-setup.service
+RUN systemctl enable microceph-setup.service
+
+STOPSIGNAL SIGRTMIN+3
+
+ENTRYPOINT ["/sbin/init"]
 

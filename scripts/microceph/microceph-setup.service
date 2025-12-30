@@ -1,0 +1,14 @@
+[Unit]
+Description=MicroCeph Setup Service
+After=snapd.service
+Requires=snapd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

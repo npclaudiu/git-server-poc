@@ -1,5 +1,5 @@
 version: '3.8'
-name: git-server-poc_devenv
+name: git-server-poc-devenv
 
 services:
   microceph:
@@ -9,20 +9,20 @@ services:
     container_name: microceph
     privileged: true
     volumes:
-      - /var/lib/snapd:/var/lib/snapd
+      - snapd_data:/var/lib/snapd
       - /dev:/dev
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
     cap_add:
       - SYS_ADMIN
     security_opt:
       - seccomp:unconfined
       - apparmor:unconfined
-    command: >
-      bash -c "
-      snap install microceph &&
-      /snap/bin/microceph cluster bootstrap &&
-      tail -f /var/snap/microceph/common/log/microceph.log
-      "
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+    ports:
+      - "8000:8000"
 
   postgres:
     image: postgres:18.1-trixie
@@ -38,3 +38,4 @@ services:
 
 volumes:
   postgres_data:
+  snapd_data:

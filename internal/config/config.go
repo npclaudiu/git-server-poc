@@ -6,16 +6,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DatabaseConfig holds all configuration for the database connection.
-type DatabaseConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	DBName   string `yaml:"dbname"`
-	SSLMode  string `yaml:"sslmode"`
-}
-
 type Config struct {
 	Server struct {
 		Host string `yaml:"host"`
@@ -24,11 +14,26 @@ type Config struct {
 	Log struct {
 		Level string `yaml:"level"`
 	} `yaml:"log"`
-	Database DatabaseConfig `yaml:"database"`
+	MetaStore struct {
+		Host     string `yaml:"host"`
+		Port     int    `yaml:"port"`
+		User     string `yaml:"user"`
+		Password string `yaml:"password"`
+		DBName   string `yaml:"dbname"`
+		SSLMode  string `yaml:"sslmode"`
+	} `yaml:"meta_store"`
+	ObjectStore struct {
+		Endpoint        string `yaml:"endpoint"`
+		AccessKeyID     string `yaml:"access_key"`
+		SecretAccessKey string `yaml:"secret_key"`
+		Bucket          string `yaml:"bucket"`
+		Region          string `yaml:"region"`
+	} `yaml:"object_store"`
 }
 
 func Load() (*Config, error) {
 	f, err := os.Open("config.yaml")
+
 	if err != nil {
 		return nil, err
 	}
@@ -37,8 +42,10 @@ func Load() (*Config, error) {
 	var cfg Config
 	decoder := yaml.NewDecoder(f)
 	err = decoder.Decode(&cfg)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return &cfg, nil
 }

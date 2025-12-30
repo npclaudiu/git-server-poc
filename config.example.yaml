@@ -1,12 +1,21 @@
 server:
   host: localhost
   port: 8080
+
 log:
   level: info
-database:
-  host: "localhost"
+
+meta_store:
+  host: "devenv.local"
   port: 5432
   user: "git_user"
   password: "git_password"
   dbname: "git_server"
   sslmode: "disable"
+
+object_store:
+  endpoint: http://localhost:8000
+  access_key: ACCESS_KEY
+  secret_key: SECRET_KEY
+  bucket: git-lfs
+  region: us-east-1
