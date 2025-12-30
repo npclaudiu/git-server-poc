@@ -1,4 +1,3 @@
-\restrict 47Ux4unMPSpomSeb6VxnJbtzMSf1xkOtdah5Hogf66yyS8ngBo8rgirp3WcIqEv
 
 -- Dumped from database version 18.1 (Debian 18.1-1.pgdg13+2)
 -- Dumped by pg_dump version 18.1
@@ -94,7 +93,6 @@ ALTER TABLE ONLY public.schema_migrations
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 47Ux4unMPSpomSeb6VxnJbtzMSf1xkOtdah5Hogf66yyS8ngBo8rgirp3WcIqEv
 
 
 --
