@@ -1,3 +1,4 @@
+-- \restrict X1OlwozIpDrxfkyS7KCGZWYYVJMcHIuwevVex9EWzZoQ710mdUd5BC3GL9htgIY
 
 -- Dumped from database version 18.1 (Debian 18.1-1.pgdg13+2)
 -- Dumped by pg_dump version 18.1
@@ -93,6 +94,7 @@ ALTER TABLE ONLY public.schema_migrations
 -- PostgreSQL database dump complete
 --
 
+-- \unrestrict X1OlwozIpDrxfkyS7KCGZWYYVJMcHIuwevVex9EWzZoQ710mdUd5BC3GL9htgIY
 
 
 --

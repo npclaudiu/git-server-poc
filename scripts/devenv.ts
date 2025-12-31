@@ -10,9 +10,12 @@ import YAML from 'yaml';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const kRepositoryRoot = path.join(__dirname, '..');
+
 const kDockerComposeFile = path.join(__dirname, 'docker-compose.yml');
-const kConfigFile = path.join(__dirname, '..', 'config.yaml');
-const kExampleConfigFile = path.join(__dirname, '..', 'config.example.yaml');
+const kConfigFile = path.join(kRepositoryRoot, 'config.yaml');
+const kExampleConfigFile = path.join(kRepositoryRoot, 'config.example.yaml');
+const kSqlcConfigFile = path.join(kRepositoryRoot, 'sqlc.yaml');
 
 process.chdir(__dirname);
 
@@ -38,7 +41,7 @@ async function up(options: { verbose: boolean }) {
     if (!ready) {
         console.error("MicroCeph failed to become ready. Check logs: `docker logs microceph`.");
     } else {
-        await creds();
+        await objectStoreCredentials();
     }
 }
 
@@ -50,7 +53,7 @@ async function status() {
     await $`docker compose -f ${kDockerComposeFile} ps`;
 }
 
-async function creds() {
+async function objectStoreCredentials() {
     while (true) {
         try {
             const ps = await $`docker ps --filter "name=microceph" --filter "status=running"`;
@@ -129,7 +132,7 @@ async function creds() {
     fs.writeFileSync(kConfigFile, doc.toString());
 }
 
-async function migrate() {
+async function metaStoreMigrate() {
     console.log("Running database migrations...");
 
     if (!fs.existsSync(kConfigFile)) {
@@ -151,7 +154,16 @@ async function migrate() {
     const migrationsDir = path.join(__dirname, '..', 'db', 'migrations');
     const schemaFile = path.join(__dirname, '..', 'db', 'schema.sql');
 
-    await $`pnpm exec dbmate -d ${migrationsDir} -s ${schemaFile} up`;
+    await $`dbmate -d ${migrationsDir} -s ${schemaFile} up`;
+
+    const schema = await fs.readFileSync(schemaFile, 'utf-8');
+    const regex = /\\restrict|\\unrestrict/g;
+    const newSchema = schema.replace(regex, '-- $&');
+    fs.writeFileSync(schemaFile, newSchema);
+}
+
+async function metaStoreGenerate() {
+    await $`sqlc generate -f ${kSqlcConfigFile}`;
 }
 
 async function main() {
@@ -161,6 +173,8 @@ async function main() {
         .name('devenv')
         .description('Manage the Docker-based development environment')
         .version('1.0.0');
+
+    // Docker environment
 
     program.command('up')
         .description('Start the environment and configure MicroCeph')
@@ -176,13 +190,27 @@ async function main() {
         .description('Show status of containers')
         .action(status);
 
-    program.command('creds')
-        .description('Generate/Refresh S3 credentials')
-        .action(creds);
+    // Object Store
 
-    program.command('migrate')
+    const objectStoreCmd = program.command('objectstore')
+        .description('Manage object store')
+
+    objectStoreCmd.command('credentials')
+        .description('Generate/Refresh S3 credentials')
+        .action(objectStoreCredentials);
+
+    // Metadata Store
+
+    const metaStoreCmd = program.command('metastore')
+        .description('Manage metadata store')
+
+    metaStoreCmd.command('migrate')
         .description('Run database migrations')
-        .action(migrate);
+        .action(metaStoreMigrate);
+
+    metaStoreCmd.command('generate')
+        .description('Generate database migrations')
+        .action(metaStoreGenerate);
 
     program.parse(process.argv);
 }

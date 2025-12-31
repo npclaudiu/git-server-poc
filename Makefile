@@ -44,6 +44,11 @@ devenv-up:
 devenv-down:
 	pnpm --prefix ./scripts devenv down
 
-.PHONY: migrate
-migrate:
-	pnpm --prefix ./scripts devenv migrate
+.PHONY: ms-migrate
+ms-migrate:
+	pnpm --prefix ./scripts devenv metastore migrate
+
+.PHONY: ms-gen
+ms-gen:
+	pnpm --prefix ./scripts devenv metastore generate
+
