@@ -8,8 +8,8 @@ log:
 meta_store:
   host: "localhost"
   port: 5432
-  user: "user"
-  password: "password"
+  user: "minerva"
+  password: "m1n3rv@"
   dbname: "git-server-poc"
   sslmode: "disable"
 

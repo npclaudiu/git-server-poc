@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
-import { $ } from 'zx';
 import YAML from 'yaml';
+import { $ } from 'zx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +20,36 @@ const kSqlcConfigFile = path.join(kRepositoryRoot, 'sqlc.yaml');
 
 process.chdir(__dirname);
 process.env.PATH = `${__dirname}/bin:${process.env.PATH}`;
+
+async function _readConfig() {
+    if (!fs.existsSync(kConfigFile)) {
+        throw new Error(`Config file not found at ${kConfigFile}`);
+    }
+
+    const configContent = fs.readFileSync(kConfigFile, 'utf-8');
+    const document = YAML.parseDocument(configContent);
+
+    return document;
+}
+
+type ConfigDocument = Awaited<ReturnType<typeof _readConfig>>;
+
+async function _getMetaStoreDsn(document: ConfigDocument) {
+    const config = document.toJS();
+
+    if (!config.meta_store) {
+        console.error("meta_store configuration not found in config.yaml");
+        process.exit(1);
+    }
+
+    const { user, password, host, port, dbname, sslmode } = config.meta_store;
+    const u = encodeURIComponent(user);
+    const p = encodeURIComponent(password);
+
+    return `postgres://${u}:${p}@${host}:${port}/${dbname}?sslmode=${sslmode}`;
+}
+
+// #region Docker
 
 async function up(options: { verbose: boolean }) {
     if (options.verbose) $.verbose = true;
@@ -54,6 +84,20 @@ async function down({ volumes }: { volumes: boolean }) {
 async function status() {
     await $`docker compose -f ${kDockerComposeFile} ps`;
 }
+
+// #endregion
+
+// #region Config
+
+async function getConfig(this: Command, path: string): Promise<void> {
+    const document = await _readConfig();
+    const value = document.getIn(path.split('.'));
+    console.log(JSON.stringify(value));
+}
+
+// #endregion
+
+// #region Object Store
 
 async function objectStoreCredentials({ user }: { user: string }) {
     while (true) {
@@ -115,33 +159,24 @@ async function objectStoreCredentials({ user }: { user: string }) {
     const configContent = fs.readFileSync(kConfigFile, 'utf-8');
     const doc = YAML.parseDocument(configContent);
 
-    doc.set('object_store', {
-        ...doc.get('object_store') ?? {},
-        access_key: accessKey,
-        secret_key: secretKey,
-    });
+    doc.setIn(['object_store', 'access_key'], accessKey);
+    doc.setIn(['object_store', 'secret_key'], secretKey);
 
     fs.writeFileSync(kConfigFile, doc.toString());
 }
 
+// #endregion
+
+// #region Meta Store
+
+async function metaStoreGetDsn(this: Command, ...args: any[]): Promise<void> {
+    const document = await _readConfig();
+    console.log(await _getMetaStoreDsn(document));
+}
+
 async function metaStoreMigrate() {
-    console.log("Running database migrations...");
-
-    if (!fs.existsSync(kConfigFile)) {
-        console.error(`Config file not found at ${kConfigFile}`);
-        process.exit(1);
-    }
-
-    const configContent = fs.readFileSync(kConfigFile, 'utf-8');
-    const config = YAML.parse(configContent);
-
-    if (!config.meta_store) {
-        console.error("meta_store configuration not found in config.yaml");
-        process.exit(1);
-    }
-
-    const { user, password, host, port, dbname, sslmode } = config.meta_store;
-    process.env.DATABASE_URL = `postgres://${user}:${password}@${host}:${port}/${dbname}?sslmode=${sslmode}`;
+    const document = await _readConfig();
+    process.env.DATABASE_URL = await _getMetaStoreDsn(document);
 
     const metastoreDir = path.join(kRepositoryRoot, 'internal', 'metastore', 'pg');
     const migrationsDir = path.join(metastoreDir, 'migrations');
@@ -158,6 +193,8 @@ async function metaStoreMigrate() {
 async function metaStoreGenerate() {
     await $`sqlc generate -f ${kSqlcConfigFile}`;
 }
+
+// #endregion
 
 async function main() {
     const program = new Command();
@@ -183,6 +220,16 @@ async function main() {
         .description('Show status of containers')
         .action(status);
 
+    // Config
+
+    const configCmd = program.command('config')
+        .description('Manage configuration');
+
+    configCmd.command('get')
+        .description('Get configuration value by attribute path')
+        .argument('<path>', 'Attribute path')
+        .action(getConfig);
+
     // Object Store
 
     const objectStoreCmd = program.command('objectstore')
@@ -197,6 +244,10 @@ async function main() {
 
     const metaStoreCmd = program.command('metastore')
         .description('Manage metadata store')
+
+    metaStoreCmd.command('get-dsn')
+        .description('Get database connection string')
+        .action(metaStoreGetDsn);
 
     metaStoreCmd.command('migrate')
         .description('Run database migrations')

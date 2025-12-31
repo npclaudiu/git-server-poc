@@ -28,8 +28,8 @@ services:
     image: postgres:18.1-trixie
     container_name: postgres
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: minerva
+      POSTGRES_PASSWORD: m1n3rv@
       POSTGRES_DB: git-server-poc
     ports:
       - "5432:5432"

@@ -24,8 +24,8 @@ command will set up a Docker environment with
 storage and [PostgreSQL](https://www.postgresql.org/) for metadata storage.
 
 After the environment is up and running, you can build the server using `make
-debug`. To run the server, you can either run `./build/git-server-poc` or launch it
-from VSCode in debug mode.
+debug`. To run the server, you can either run `./build/git-server-poc` or launch
+it from VSCode in debug mode.
 
 ## Ceph
 
@@ -89,4 +89,60 @@ However, for the most common commands, this project provides wrapper scripts in
 
 # Delete RGW User:
 ./devenv/bin/radosgw-admin user rm --uid="hercules"
+```
+
+## PostgreSQL
+
+PostgreSQL is used for metadata storage (repositories, etc.). It runs in a
+Docker container named `postgres`.
+
+### Configuration
+
+- **Version**: 18.1
+- **Port**: 5432 (Mapped to host port 5432)
+- **Database**: `git-server-poc`
+- **User**: `minerva`
+- **Password**: `m1n3rv@`
+
+### Schema Management
+
+We use [dbmate](https://github.com/amacneil/dbmate) for database schema
+migrations.
+
+**Run Migrations:**
+
+```bash
+make ms-migrate
+```
+
+### Code Generation
+
+We use [sqlc](https://sqlc.dev/) to generate Go code from SQL queries.
+
+**Generate Code:**
+
+```bash
+make ms-gen
+```
+
+### Common Commands
+
+```bash
+# Connect to database in interactive mode:
+./devenv/bin/psql
+
+# List databases:
+./devenv/bin/psql -l
+
+# List tables:
+./devenv/bin/psql -c "\dt"
+
+# List columns of a table:
+./devenv/bin/psql -c "\d+ table_name"
+
+# List indexes of a table:
+./devenv/bin/psql -c "\di+ table_name"
+
+# List sequences of a table:
+./devenv/bin/psql -c "\ds+ table_name"
 ```

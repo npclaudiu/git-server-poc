@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+DATABASE_URL=$($REPO_ROOT/devenv/bin/devenv metastore get-dsn)
+
+if [ -z "$1" ]; then
+    docker exec -it postgres psql "$DATABASE_URL"
+    exit $?
+fi
+
+docker exec postgres psql "$DATABASE_URL" "$@"
+exit $?
