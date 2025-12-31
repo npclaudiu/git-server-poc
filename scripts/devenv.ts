@@ -151,8 +151,9 @@ async function metaStoreMigrate() {
     const { user, password, host, port, dbname, sslmode } = config.meta_store;
     process.env.DATABASE_URL = `postgres://${user}:${password}@${host}:${port}/${dbname}?sslmode=${sslmode}`;
 
-    const migrationsDir = path.join(__dirname, '..', 'db', 'migrations');
-    const schemaFile = path.join(__dirname, '..', 'db', 'schema.sql');
+    const metastoreDir = path.join(kRepositoryRoot, 'internal', 'metastore', 'pg');
+    const migrationsDir = path.join(metastoreDir, 'migrations');
+    const schemaFile = path.join(metastoreDir, 'schema.sql');
 
     await $`dbmate -d ${migrationsDir} -s ${schemaFile} up`;
 

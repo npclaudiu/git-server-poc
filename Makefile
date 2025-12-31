@@ -51,4 +51,3 @@ ms-migrate:
 .PHONY: ms-gen
 ms-gen:
 	pnpm --prefix ./scripts devenv metastore generate
-

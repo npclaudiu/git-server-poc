@@ -1,10 +1,9 @@
 version: "2"
 sql:
-  - schema: "db/schema.sql"
-    queries: "db/query.sql"
+  - schema: "internal/metastore/pg/schema.sql"
+    queries: "internal/metastore/pg/query.sql"
     engine: "postgresql"
     gen:
       go:
-        package: "db"
         out: "internal/metastore/pg"
         sql_package: "pgx/v5"
