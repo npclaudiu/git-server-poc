@@ -38,16 +38,16 @@ tidy:
 
 .PHONY: devenv-up
 devenv-up:
-	pnpm --prefix ./scripts devenv up
+	pnpm --prefix ./devenv devenv up
 
 .PHONY: devenv-down
 devenv-down:
-	pnpm --prefix ./scripts devenv down
+	pnpm --prefix ./devenv devenv down
 
 .PHONY: ms-migrate
 ms-migrate:
-	pnpm --prefix ./scripts devenv metastore migrate
+	pnpm --prefix ./devenv devenv metastore migrate
 
 .PHONY: ms-gen
 ms-gen:
-	pnpm --prefix ./scripts devenv metastore generate
+	pnpm --prefix ./devenv devenv metastore generate

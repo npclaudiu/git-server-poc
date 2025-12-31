@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+docker exec microceph /snap/bin/microceph.radosgw-admin "$@"
+exit $?

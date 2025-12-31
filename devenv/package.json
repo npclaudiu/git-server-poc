@@ -1,5 +1,5 @@
 {
-  "name": "scripts",
+  "name": "devenv",
   "version": "1.0.0",
   "type": "module",
   "engines": {

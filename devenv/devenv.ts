@@ -10,14 +10,16 @@ import YAML from 'yaml';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const kRepositoryRoot = path.join(__dirname, '..');
+const kDefaultCephUser = 'hercules';
 
+const kRepositoryRoot = path.join(__dirname, '..');
 const kDockerComposeFile = path.join(__dirname, 'docker-compose.yml');
 const kConfigFile = path.join(kRepositoryRoot, 'config.yaml');
 const kExampleConfigFile = path.join(kRepositoryRoot, 'config.example.yaml');
 const kSqlcConfigFile = path.join(kRepositoryRoot, 'sqlc.yaml');
 
 process.chdir(__dirname);
+process.env.PATH = `${__dirname}/bin:${process.env.PATH}`;
 
 async function up(options: { verbose: boolean }) {
     if (options.verbose) $.verbose = true;
@@ -41,7 +43,7 @@ async function up(options: { verbose: boolean }) {
     if (!ready) {
         console.error("MicroCeph failed to become ready. Check logs: `docker logs microceph`.");
     } else {
-        await objectStoreCredentials();
+        await objectStoreCredentials({ user: kDefaultCephUser });
     }
 }
 
@@ -53,7 +55,7 @@ async function status() {
     await $`docker compose -f ${kDockerComposeFile} ps`;
 }
 
-async function objectStoreCredentials() {
+async function objectStoreCredentials({ user }: { user: string }) {
     while (true) {
         try {
             const ps = await $`docker ps --filter "name=microceph" --filter "status=running"`;
@@ -65,7 +67,7 @@ async function objectStoreCredentials() {
 
     while (true) {
         try {
-            const health = await $`docker exec microceph /snap/bin/microceph.ceph -s`.nothrow();
+            const health = await $`ceph -s`.nothrow();
             if (health.stdout.includes("health: HEALTH_OK")) break;
         } catch { }
         await new Promise(resolve => setTimeout(resolve, 5000));
@@ -74,38 +76,32 @@ async function objectStoreCredentials() {
 
     while (true) {
         try {
-            const status = await $`docker exec microceph /snap/bin/microceph status`.nothrow();
+            const status = await $`microceph status`.nothrow();
             if (status.stdout.includes("rgw")) break;
         } catch { }
         await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
-    let credsJson = "";
-    const create = await $`docker exec microceph /snap/bin/microceph.radosgw-admin user create --uid="dev" --display-name="Developer"`.nothrow();
+    let rawUserInfo = "";
+    const create = await $`radosgw-admin user create --uid="${user}" --display-name="${user}"`.nothrow();
     if (create.exitCode === 0) {
-        credsJson = create.stdout;
+        rawUserInfo = create.stdout;
     } else {
-        const info = await $`docker exec microceph /snap/bin/microceph.radosgw-admin user info --uid=dev`;
-        credsJson = info.stdout;
+        const info = await $`radosgw-admin user info --uid=${user}`;
+        rawUserInfo = info.stdout;
     }
 
     let accessKey = "";
     let secretKey = "";
     try {
-        const data = JSON.parse(credsJson);
-        if (data.keys && data.keys.length > 0) {
-            accessKey = data.keys[0].access_key;
-            secretKey = data.keys[0].secret_key;
+        const userInfo = JSON.parse(rawUserInfo);
+        if (userInfo.keys && userInfo.keys.length > 0) {
+            accessKey = userInfo.keys[0].access_key;
+            secretKey = userInfo.keys[0].secret_key;
         }
     } catch (e) {
         console.error("Failed to parse credentials logic:", e);
-    }
-
-    if (!accessKey || !secretKey) {
-        const akMatch = credsJson.match(/"access_key": "([^"]+)"/);
-        const skMatch = credsJson.match(/"secret_key": "([^"]+)"/);
-        if (akMatch) accessKey = akMatch[1];
-        if (skMatch) secretKey = skMatch[1];
+        process.exit(1);
     }
 
     if (!fs.existsSync(kConfigFile)) {
@@ -117,18 +113,14 @@ async function objectStoreCredentials() {
     }
 
     const configContent = fs.readFileSync(kConfigFile, 'utf-8');
-
     const doc = YAML.parseDocument(configContent);
 
-    const newObjectStore = {
-        endpoint: "http://localhost:8000",
+    doc.set('object_store', {
+        ...doc.get('object_store') ?? {},
         access_key: accessKey,
         secret_key: secretKey,
-        bucket: "git-lfs",
-        region: "us-east-1"
-    };
+    });
 
-    doc.set('object_store', newObjectStore);
     fs.writeFileSync(kConfigFile, doc.toString());
 }
 
@@ -198,6 +190,7 @@ async function main() {
 
     objectStoreCmd.command('credentials')
         .description('Generate/Refresh S3 credentials')
+        .requiredOption('-u, --user <user>', 'User name')
         .action(objectStoreCredentials);
 
     // Metadata Store

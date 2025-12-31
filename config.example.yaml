@@ -17,5 +17,5 @@ object_store:
   endpoint: http://localhost:8000
   access_key: CRJFQ1D9O5CN78V4F4FR
   secret_key: AnyhjoBjqw3QkbQqXzwb6SrAPpoefIWLYyC7raSY
-  bucket: git-lfs
+  bucket: git-objects
   region: us-east-1
