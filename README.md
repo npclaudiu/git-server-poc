@@ -109,18 +109,6 @@ This abstracts the underlying storage, allowing us to route:
 - **Objects** (blobs, trees, commits) to **Ceph** (via `internal/objectstore`).
 - **References** (branches, tags) to **PostgreSQL** (via `internal/metastore`).
 
-```mermaid
-graph TD
-    Client[Git Client]
-    Server[Git Server PoC]
-    S3[(Object Storage <br> Ceph/S3)]
-    DB[(Metadata Store <br> PostgreSQL)]
-
-    Client -- "HTTP (Smart Protocol) <br> /git-receive-pack <br> /git-upload-pack" --> Server
-    Server -- "Stream Objects <br> (Blobs, Trees, Commits)" --> S3
-    Server -- "Manage References <br> (Branches, Tags)" --> DB
-```
-
 #### **Object Storage**
 
 - Objects are stored as "loose objects" in S3-compatible Ceph buckets under
@@ -277,5 +265,5 @@ make ms-gen
 
 __
 
-Copyright (c) 2026, Claudiu Nedelcu. All rights reserved.
+Copyright © 2026, Claudiu Nedelcu. All rights reserved.
 Licensed under the [MIT License](LICENSE.txt).
