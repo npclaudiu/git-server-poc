@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"regexp"
 	"sync"
 	"time"
 
@@ -39,6 +40,12 @@ func New(cfg *config.Config, ms *metastore.MetaStore, os *objectstore.ObjectStor
 	r.Use(middleware.Recoverer)
 
 	r.Get("/health", s.handleHealth)
+
+	r.Get("/repositories", s.handleListRepositories)
+	r.Post("/repositories", s.handleCreateRepository)
+	r.Get("/repositories/{repository_id}", s.handleGetRepository)
+	r.Put("/repositories/{repository_id}", s.handleUpdateRepository)
+	r.Delete("/repositories/{repository_id}", s.handleDeleteRepository)
 
 	s.httpServer = &http.Server{
 		Addr:    net.JoinHostPort(cfg.Server.Host, cfg.Server.Port),
@@ -101,11 +108,144 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		resp.ObjectStore = "down"
 	}
 
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.Header().Set("Content-Type", "application/json")
+
 	if errors > 0 {
 		resp.Status = "error"
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
 	json.NewEncoder(w).Encode(resp)
+}
+
+// Request/Response structs
+
+type CreateRepositoryRequest struct {
+	Name string `json:"name"`
+}
+
+type UpdateRepositoryRequest struct {
+	Name string `json:"name"`
+}
+
+var validNameRegex = regexp.MustCompile(`^[a-z0-9\-_]+$`)
+
+func isValidRepoName(name string) bool {
+	return validNameRegex.MatchString(name)
+}
+
+// Handlers
+
+func (s *Server) handleCreateRepository(w http.ResponseWriter, r *http.Request) {
+	var req CreateRepositoryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	if !isValidRepoName(req.Name) {
+		http.Error(w, "invalid repository name", http.StatusBadRequest)
+		return
+	}
+
+	repo, err := s.metaStore.CreateRepository(r.Context(), req.Name)
+	if err != nil {
+		slog.Error("failed to create repository", "err", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(repo)
+}
+
+func (s *Server) handleListRepositories(w http.ResponseWriter, r *http.Request) {
+	repos, err := s.metaStore.ListRepositories(r.Context())
+	if err != nil {
+		slog.Error("failed to list repositories", "err", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repos)
+}
+
+func (s *Server) handleGetRepository(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "repository_id")
+	if !isValidRepoName(id) {
+		http.Error(w, "invalid repository id", http.StatusBadRequest)
+		return
+	}
+
+	repo, err := s.metaStore.GetRepository(r.Context(), id)
+	if err != nil {
+		slog.Error("failed to get repository", "id", id, "err", err)
+		// TODO: handle ErrNoRows specifically
+		http.Error(w, "repository not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repo)
+}
+
+func (s *Server) handleUpdateRepository(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "repository_id")
+	if !isValidRepoName(id) {
+		http.Error(w, "invalid repository id", http.StatusBadRequest)
+		return
+	}
+
+	var req UpdateRepositoryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	if !isValidRepoName(req.Name) {
+		http.Error(w, "invalid repository name", http.StatusBadRequest)
+		return
+	}
+
+	repo, err := s.metaStore.UpdateRepository(r.Context(), id, req.Name)
+	if err != nil {
+		slog.Error("failed to update repository", "id", id, "err", err)
+		// TODO: handle ErrNoRows specifically
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repo)
+}
+
+func (s *Server) handleDeleteRepository(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "repository_id")
+	if !isValidRepoName(id) {
+		http.Error(w, "invalid repository id", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.metaStore.DeleteRepository(r.Context(), id); err != nil {
+		slog.Error("failed to delete repository", "id", id, "err", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

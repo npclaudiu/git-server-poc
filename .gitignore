@@ -1,3 +1,4 @@
 /bin
 /config.yaml
 /devenv/node_modules
+/*.log

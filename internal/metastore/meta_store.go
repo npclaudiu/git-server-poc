@@ -5,10 +5,12 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/npclaudiu/git-server-poc/internal/metastore/pg"
 )
 
 type MetaStore struct {
-	pool *pgxpool.Pool
+	pool    *pgxpool.Pool
+	queries *pg.Queries
 }
 
 type Options struct {
@@ -41,7 +43,10 @@ func New(ctx context.Context, options Options) (*MetaStore, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &MetaStore{pool: pool}, nil
+	return &MetaStore{
+		pool:    pool,
+		queries: pg.New(pool),
+	}, nil
 }
 
 func (m *MetaStore) Close() {
@@ -50,4 +55,27 @@ func (m *MetaStore) Close() {
 
 func (m *MetaStore) Ping(ctx context.Context) error {
 	return m.pool.Ping(ctx)
+}
+
+func (m *MetaStore) CreateRepository(ctx context.Context, name string) (pg.Repository, error) {
+	return m.queries.CreateRepository(ctx, name)
+}
+
+func (m *MetaStore) ListRepositories(ctx context.Context) ([]pg.Repository, error) {
+	return m.queries.ListRepositories(ctx)
+}
+
+func (m *MetaStore) GetRepository(ctx context.Context, name string) (pg.Repository, error) {
+	return m.queries.GetRepository(ctx, name)
+}
+
+func (m *MetaStore) UpdateRepository(ctx context.Context, oldName string, newName string) (pg.Repository, error) {
+	return m.queries.UpdateRepository(ctx, pg.UpdateRepositoryParams{
+		NewName: newName,
+		OldName: oldName,
+	})
+}
+
+func (m *MetaStore) DeleteRepository(ctx context.Context, name string) error {
+	return m.queries.DeleteRepository(ctx, name)
 }

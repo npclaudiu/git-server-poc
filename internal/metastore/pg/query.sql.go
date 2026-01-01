@@ -20,6 +20,26 @@ func (q *Queries) CreateRepository(ctx context.Context, name string) (Repository
 	return i, err
 }
 
+const deleteRepository = `-- name: DeleteRepository :exec
+DELETE FROM repositories WHERE name = $1
+`
+
+func (q *Queries) DeleteRepository(ctx context.Context, name string) error {
+	_, err := q.db.Exec(ctx, deleteRepository, name)
+	return err
+}
+
+const getRepository = `-- name: GetRepository :one
+SELECT id, name, created_at FROM repositories WHERE name = $1
+`
+
+func (q *Queries) GetRepository(ctx context.Context, name string) (Repository, error) {
+	row := q.db.QueryRow(ctx, getRepository, name)
+	var i Repository
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
+}
+
 const listRepositories = `-- name: ListRepositories :many
 SELECT id, name, created_at FROM repositories ORDER BY name
 `
@@ -42,4 +62,20 @@ func (q *Queries) ListRepositories(ctx context.Context) ([]Repository, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateRepository = `-- name: UpdateRepository :one
+UPDATE repositories SET name = $1 WHERE name = $2 RETURNING id, name, created_at
+`
+
+type UpdateRepositoryParams struct {
+	NewName string
+	OldName string
+}
+
+func (q *Queries) UpdateRepository(ctx context.Context, arg UpdateRepositoryParams) (Repository, error) {
+	row := q.db.QueryRow(ctx, updateRepository, arg.NewName, arg.OldName)
+	var i Repository
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
 }

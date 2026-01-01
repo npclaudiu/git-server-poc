@@ -68,9 +68,6 @@ func (o *ObjectStore) EnsureBucket(ctx context.Context) error {
 			return nil
 		}
 
-		// We assume any error means the bucket does not exist or we can't access it.
-		// In a robust implementation we should check specifically for NotFound.
-		// For this PoC, we'll attempt creation.
 		_, err = o.client.CreateBucket(ctx, &s3.CreateBucketInput{
 			Bucket: aws.String(o.bucket),
 		})
@@ -78,8 +75,6 @@ func (o *ObjectStore) EnsureBucket(ctx context.Context) error {
 			return nil
 		}
 
-		// If error is not nil, wait and retry.
-		// We could log the error here if we had a logger, but for now we just retry.
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
