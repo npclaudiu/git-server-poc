@@ -1,5 +1,7 @@
 # Git Server PoC
 
+## Introduction
+
 > **Note:** Not intended for production use.
 
 This project is an experimental sandbox that implements a custom Git server in
@@ -19,9 +21,12 @@ cloud storage. Instead of writing loose Git objects directly to disk, this
 system acts as a smart packer. It plans to explore the use of FastCDC and Merkle
 Tree traversal to validate, deduplicate, and persist data.
 
+This project was created during winter holidays of 2025-2026 using Google Gemini
+and Google Antigravity.
+
 ## Quick Start
 
-Prerequisites:
+### Prerequisites
 
 - [Go](https://golang.org/dl/)
 - [Make](https://www.gnu.org/software/make/)
@@ -31,20 +36,36 @@ Prerequisites:
 - [dbmate](https://github.com/amacneil/dbmate)
 - [sqlc](https://sqlc.dev/)
 
-You can bootstrap the entire development environment using `make devenv`. This
-command will set up a Docker environment with
+### Setup
+
+```bash
+make devenv
+```
+
+This command will set up a Docker environment with
 [MicroCeph](https://github.com/canonical/microceph) for S3-compatible object
 storage and [PostgreSQL](https://www.postgresql.org/) for metadata storage.
 
-After the environment is up and running, you can build the server using `make
-debug`. To run the server, you can either run `./build/git-server-poc` or launch
-it from VSCode in debug mode.
+### Build
+
+```bash
+make debug
+```
+
+### Run
+
+```bash
+./bin/git-server-poc
+```
+
+Alternatively, you can run it from an IDE in debug mode. VSCode configs are
+already included.
 
 ## Ceph
 
 MicroCeph is used to provide an S3-compatible object storage service (RGW) for
-storing Git objects. The entire Ceph cluster runs inside a single privileged
-Docker container named `microceph`.
+storing Git objects. The entire Ceph cluster runs inside a single Docker
+container named `microceph`.
 
 ### Cluster Topology
 
@@ -109,8 +130,8 @@ However, for the most common commands, this project provides wrapper scripts in
 
 ## PostgreSQL
 
-PostgreSQL is used for metadata storage (repositories, etc.). It runs in a
-Docker container named `postgres`.
+PostgreSQL is used for metadata storage (everything but objects and packs). It
+runs in a Docker container named `postgres`.
 
 ### Configuration
 

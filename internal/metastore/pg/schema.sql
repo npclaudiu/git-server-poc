@@ -1,4 +1,4 @@
--- \restrict lBxrbehL5ROFZv6PBJXJaJZIr7MkulGD25mJ21yL02brLOepya7dRfpfeZ22ci5
+-- \restrict CJZAnE8wfOyiNGWX6cyEL08c0wKeDbpSzwebRKhWVpiPorpFnOZtK5fgj0lcuzK
 
 -- Dumped from database version 18.1 (Debian 18.1-1.pgdg13+2)
 -- Dumped by pg_dump version 18.1
@@ -18,6 +18,19 @@ SET row_security = off;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: refs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.refs (
+    repo_name character varying(255) NOT NULL,
+    ref_name character varying(255) NOT NULL,
+    type character varying(20) NOT NULL,
+    hash character varying(40),
+    target character varying(255)
+);
+
 
 --
 -- Name: repositories; Type: TABLE; Schema: public; Owner: -
@@ -67,6 +80,14 @@ ALTER TABLE ONLY public.repositories ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
+-- Name: refs refs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refs
+    ADD CONSTRAINT refs_pkey PRIMARY KEY (repo_name, ref_name);
+
+
+--
 -- Name: repositories repositories_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -91,10 +112,18 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: refs refs_repo_name_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refs
+    ADD CONSTRAINT refs_repo_name_fkey FOREIGN KEY (repo_name) REFERENCES public.repositories(name) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
--- \unrestrict lBxrbehL5ROFZv6PBJXJaJZIr7MkulGD25mJ21yL02brLOepya7dRfpfeZ22ci5
+-- \unrestrict CJZAnE8wfOyiNGWX6cyEL08c0wKeDbpSzwebRKhWVpiPorpFnOZtK5fgj0lcuzK
 
 
 --
@@ -102,4 +131,5 @@ ALTER TABLE ONLY public.schema_migrations
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
-    ('20251230232400');
+    ('20251230232400'),
+    ('20260101');

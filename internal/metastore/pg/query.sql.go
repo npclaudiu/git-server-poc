@@ -7,6 +7,8 @@ package pg
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createRepository = `-- name: CreateRepository :one
@@ -20,6 +22,20 @@ func (q *Queries) CreateRepository(ctx context.Context, name string) (Repository
 	return i, err
 }
 
+const deleteRef = `-- name: DeleteRef :exec
+DELETE FROM refs WHERE repo_name = $1 AND ref_name = $2
+`
+
+type DeleteRefParams struct {
+	RepoName string
+	RefName  string
+}
+
+func (q *Queries) DeleteRef(ctx context.Context, arg DeleteRefParams) error {
+	_, err := q.db.Exec(ctx, deleteRef, arg.RepoName, arg.RefName)
+	return err
+}
+
 const deleteRepository = `-- name: DeleteRepository :exec
 DELETE FROM repositories WHERE name = $1
 `
@@ -27,6 +43,28 @@ DELETE FROM repositories WHERE name = $1
 func (q *Queries) DeleteRepository(ctx context.Context, name string) error {
 	_, err := q.db.Exec(ctx, deleteRepository, name)
 	return err
+}
+
+const getRef = `-- name: GetRef :one
+SELECT repo_name, ref_name, type, hash, target FROM refs WHERE repo_name = $1 AND ref_name = $2
+`
+
+type GetRefParams struct {
+	RepoName string
+	RefName  string
+}
+
+func (q *Queries) GetRef(ctx context.Context, arg GetRefParams) (Ref, error) {
+	row := q.db.QueryRow(ctx, getRef, arg.RepoName, arg.RefName)
+	var i Ref
+	err := row.Scan(
+		&i.RepoName,
+		&i.RefName,
+		&i.Type,
+		&i.Hash,
+		&i.Target,
+	)
+	return i, err
 }
 
 const getRepository = `-- name: GetRepository :one
@@ -38,6 +76,36 @@ func (q *Queries) GetRepository(ctx context.Context, name string) (Repository, e
 	var i Repository
 	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
 	return i, err
+}
+
+const listRefs = `-- name: ListRefs :many
+SELECT repo_name, ref_name, type, hash, target FROM refs WHERE repo_name = $1
+`
+
+func (q *Queries) ListRefs(ctx context.Context, repoName string) ([]Ref, error) {
+	rows, err := q.db.Query(ctx, listRefs, repoName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Ref
+	for rows.Next() {
+		var i Ref
+		if err := rows.Scan(
+			&i.RepoName,
+			&i.RefName,
+			&i.Type,
+			&i.Hash,
+			&i.Target,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listRepositories = `-- name: ListRepositories :many
@@ -62,6 +130,32 @@ func (q *Queries) ListRepositories(ctx context.Context) ([]Repository, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const putRef = `-- name: PutRef :exec
+INSERT INTO refs (repo_name, ref_name, type, hash, target)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (repo_name, ref_name)
+DO UPDATE SET type = EXCLUDED.type, hash = EXCLUDED.hash, target = EXCLUDED.target
+`
+
+type PutRefParams struct {
+	RepoName string
+	RefName  string
+	Type     string
+	Hash     pgtype.Text
+	Target   pgtype.Text
+}
+
+func (q *Queries) PutRef(ctx context.Context, arg PutRefParams) error {
+	_, err := q.db.Exec(ctx, putRef,
+		arg.RepoName,
+		arg.RefName,
+		arg.Type,
+		arg.Hash,
+		arg.Target,
+	)
+	return err
 }
 
 const updateRepository = `-- name: UpdateRepository :one

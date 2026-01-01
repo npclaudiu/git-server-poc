@@ -2,17 +2,20 @@ package objectstore
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type ObjectStore struct {
-	client *s3.Client
-	bucket string
+	client   *s3.Client
+	uploader *manager.Uploader
+	bucket   string
 }
 
 type Options struct {
@@ -42,12 +45,15 @@ func New(ctx context.Context, opts Options) (*ObjectStore, error) {
 		return nil, err
 	}
 
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true
+		o.Retryer = aws.NopRetryer{}
+	})
+
 	return &ObjectStore{
-		client: s3.NewFromConfig(cfg, func(o *s3.Options) {
-			o.UsePathStyle = true
-			o.Retryer = aws.NopRetryer{}
-		}),
-		bucket: opts.Bucket,
+		client:   client,
+		uploader: manager.NewUploader(client),
+		bucket:   opts.Bucket,
 	}, nil
 }
 
@@ -82,4 +88,47 @@ func (o *ObjectStore) EnsureBucket(ctx context.Context) error {
 		}
 	}
 	return err
+}
+
+func (o *ObjectStore) Head(ctx context.Context, key string) error {
+	_, err := o.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(o.bucket),
+		Key:    aws.String(key),
+	})
+	return err
+}
+
+func (o *ObjectStore) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	out, err := o.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(o.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.Body, nil
+}
+
+func (o *ObjectStore) Put(ctx context.Context, key string, r io.Reader) error {
+	_, err := o.uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(o.bucket),
+		Key:    aws.String(key),
+		Body:   r,
+	})
+	return err
+}
+
+func (o *ObjectStore) List(ctx context.Context, prefix string) ([]string, error) {
+	out, err := o.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+		Bucket: aws.String(o.bucket),
+		Prefix: aws.String(prefix),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var keys []string
+	for _, obj := range out.Contents {
+		keys = append(keys, *obj.Key)
+	}
+	return keys, nil
 }

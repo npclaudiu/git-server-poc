@@ -13,23 +13,24 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/npclaudiu/git-server-poc/internal/config"
+	gitserver "github.com/npclaudiu/git-server-poc/internal/git/server"
 	"github.com/npclaudiu/git-server-poc/internal/metastore"
 	"github.com/npclaudiu/git-server-poc/internal/objectstore"
 )
 
 type Server struct {
-	cfg         *config.Config
+	httpServer  *http.Server
 	metaStore   *metastore.MetaStore
 	objectStore *objectstore.ObjectStore
-	httpServer  *http.Server
+	gitHandler  *gitserver.GitHandler
 	wg          sync.WaitGroup
 }
 
 func New(cfg *config.Config, ms *metastore.MetaStore, os *objectstore.ObjectStore) *Server {
 	s := &Server{
-		cfg:         cfg,
 		metaStore:   ms,
 		objectStore: os,
+		gitHandler:  gitserver.New(ms, os),
 	}
 
 	r := chi.NewRouter()
@@ -46,6 +47,10 @@ func New(cfg *config.Config, ms *metastore.MetaStore, os *objectstore.ObjectStor
 	r.Get("/repositories/{repository_id}", s.handleGetRepository)
 	r.Put("/repositories/{repository_id}", s.handleUpdateRepository)
 	r.Delete("/repositories/{repository_id}", s.handleDeleteRepository)
+	// Git Smart HTTP endpoints
+	r.Get("/repositories/{repository_id}.git/info/refs", s.handleGitInfoRefs)
+	r.Post("/repositories/{repository_id}.git/git-upload-pack", s.handleGitUploadPack)
+	r.Post("/repositories/{repository_id}.git/git-receive-pack", s.handleGitReceivePack)
 
 	s.httpServer = &http.Server{
 		Addr:    net.JoinHostPort(cfg.Server.Host, cfg.Server.Port),
@@ -53,6 +58,54 @@ func New(cfg *config.Config, ms *metastore.MetaStore, os *objectstore.ObjectStor
 	}
 
 	return s
+}
+
+// ... existing code ...
+
+func (s *Server) handleGitInfoRefs(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "repository_id")
+	if !isValidRepoName(id) {
+		http.Error(w, "invalid repository name", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := s.metaStore.GetRepository(r.Context(), id); err != nil {
+		slog.Warn("repository not found for git info refs", "id", id, "err", err)
+		http.Error(w, "repository not found", http.StatusNotFound)
+		return
+	}
+
+	s.gitHandler.InfoRefs(w, r, id)
+}
+
+func (s *Server) handleGitUploadPack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "repository_id")
+	if !isValidRepoName(id) {
+		http.Error(w, "invalid repository name", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := s.metaStore.GetRepository(r.Context(), id); err != nil {
+		http.Error(w, "repository not found", http.StatusNotFound)
+		return
+	}
+
+	s.gitHandler.UploadPack(w, r, id)
+}
+
+func (s *Server) handleGitReceivePack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "repository_id")
+	if !isValidRepoName(id) {
+		http.Error(w, "invalid repository name", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := s.metaStore.GetRepository(r.Context(), id); err != nil {
+		http.Error(w, "repository not found", http.StatusNotFound)
+		return
+	}
+
+	s.gitHandler.ReceivePack(w, r, id)
 }
 
 func (s *Server) Run() error {

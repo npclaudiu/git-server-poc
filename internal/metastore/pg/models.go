@@ -8,6 +8,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Ref struct {
+	RepoName string
+	RefName  string
+	Type     string
+	Hash     pgtype.Text
+	Target   pgtype.Text
+}
+
 type Repository struct {
 	ID        int32
 	Name      string

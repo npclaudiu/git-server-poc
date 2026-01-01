@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/npclaudiu/git-server-poc/internal/metastore/pg"
 )
@@ -78,4 +79,32 @@ func (m *MetaStore) UpdateRepository(ctx context.Context, oldName string, newNam
 
 func (m *MetaStore) DeleteRepository(ctx context.Context, name string) error {
 	return m.queries.DeleteRepository(ctx, name)
+}
+
+func (m *MetaStore) GetRef(ctx context.Context, repoName, refName string) (pg.Ref, error) {
+	return m.queries.GetRef(ctx, pg.GetRefParams{
+		RepoName: repoName,
+		RefName:  refName,
+	})
+}
+
+func (m *MetaStore) ListRefs(ctx context.Context, repoName string) ([]pg.Ref, error) {
+	return m.queries.ListRefs(ctx, repoName)
+}
+
+func (m *MetaStore) PutRef(ctx context.Context, repoName, refName, refType, hash, target string) error {
+	return m.queries.PutRef(ctx, pg.PutRefParams{
+		RepoName: repoName,
+		RefName:  refName,
+		Type:     refType,
+		Hash:     pgtype.Text{String: hash, Valid: hash != ""},
+		Target:   pgtype.Text{String: target, Valid: target != ""},
+	})
+}
+
+func (m *MetaStore) DeleteRef(ctx context.Context, repoName, refName string) error {
+	return m.queries.DeleteRef(ctx, pg.DeleteRefParams{
+		RepoName: repoName,
+		RefName:  refName,
+	})
 }
