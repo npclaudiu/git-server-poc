@@ -102,6 +102,9 @@ However, for the most common commands, this project provides wrapper scripts in
 
 # Delete RGW User:
 ./devenv/bin/radosgw-admin user rm --uid="hercules"
+
+# Bucket stats:
+./devenv/bin/radosgw-admin bucket stats --bucket=git-objects
 ```
 
 ## PostgreSQL

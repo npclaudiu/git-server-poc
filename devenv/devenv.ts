@@ -58,7 +58,7 @@ async function up(options: { verbose: boolean }) {
     await $`docker compose -f ${kDockerComposeFile} up -d --build`;
 
     let ready = false;
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
         await new Promise(resolve => setTimeout(resolve, 5_000));
         process.stdout.write(".");
         try {

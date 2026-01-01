@@ -57,6 +57,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := objStore.EnsureBucket(ctx); err != nil {
+		slog.Error("failed to ensure bucket exists", "err", err)
+		os.Exit(1)
+	}
+
 	srv := server.New(cfg, metaStore, objStore)
 
 	if err := srv.Run(); err != nil {

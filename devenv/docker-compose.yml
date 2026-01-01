@@ -22,7 +22,7 @@ services:
       - /run
       - /run/lock
     ports:
-      - "8000:8000"
+      - "8000:80"
 
   postgres:
     image: postgres:18.1-trixie
