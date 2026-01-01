@@ -1,43 +1,23 @@
-# Software Hosting and Provenance Tracking System PoC
-
-Experimental storage engine designed to bridge the gap between source control
-(Git) and artifact management.
+# Git Server PoC
 
 > **Note:** Not intended for production use.
 
-## Introduction
+This project is an experimental sandbox that implements a custom Git server in
+Go. It speaks the "Smart HTTP" protocol (`git-receive-pack`, `git-upload-pack`)
+to standard Git clients. Unlike traditional Git server implementations that rely
+on file-system-based `bare` repositories, this server decouples the storage
+layer to enable cloud-native scalability and advanced analysis:
 
-This project is an experimental sandbox for diving deep into Git internals and
-storage optimization algorithms for Git repositories and software artifacts.
+- **Object Storage (Ceph)**: Git objects (blobs, trees, commits) are ingested,
+content-addressed, and stored in an S3-compatible object store.
+- **Metadata (PostgreSQL)**: Repository metadata, references (branches, tags),
+and access controls are managed in a relational database.
 
 It serves as a proof-of-concept for solving the "Small File Problem" in object
-storage by implementing an intelligent decoupling layer between Git protocols
-and standard cloud storage. Instead of writing loose Git objects directly to
-disk, this system acts as a smart packer. It plans to explore the use of FastCDC
-and Merkle Tree traversal to validate, deduplicate, and persist data.
-
-## Objectives
-
-### Phase 1: Git Server (current)
-
-In the first phase the plan is to implement a Git server that can be used to
-host Git repositories and provide a REST API for interacting with them. It aims
-to implement the Git (Smart) HTTP protocol (`git_receive_pack` and
-`git_upload_pack`).
-
-### Phase 2: Artifact Registry
-
-In the second phase, the plan is to implement an artifact registry that can be
-used to store and retrieve software artifacts (with Docker and NPM packages as
-the primary candidates).
-
-### Phase 3: Provenance and Analytics
-
-In the third phase, the plan is to explore the integration of the Git server
-with the artifact registry. In addition to the cross-linking of software
-artifacts with the source code they are derived from, it will also attempt to
-produce an analytics model based on all the data ingested to allow fast queries
-of the data.
+storage by implementing a decoupling layer between Git protocols and standard
+cloud storage. Instead of writing loose Git objects directly to disk, this
+system acts as a smart packer. It plans to explore the use of FastCDC and Merkle
+Tree traversal to validate, deduplicate, and persist data.
 
 ## Quick Start
 
