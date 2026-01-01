@@ -1,8 +1,10 @@
 # Git Server PoC
 
-## Introduction
+> Disclaimer: This project is an experiment in an early stage of development
+> and there is no intent to make it production-ready. The documentation is
+> incomplete and the code is subject to change.
 
-> **Note:** Not intended for production use.
+## Introduction
 
 This project is an experimental sandbox that implements a custom Git server in
 Go. It speaks the "Smart HTTP" protocol (`git-receive-pack`, `git-upload-pack`)
@@ -60,6 +62,71 @@ make debug
 
 Alternatively, you can run it from an IDE in debug mode. VSCode configs are
 already included.
+
+## HTTP Server & Protocol
+
+### REST API
+
+The server provides a simple REST API for managing repositories.
+
+- `POST /repositories`: Create a new repository.
+  - Body: `{"name": "repo-name"}`
+- `GET /repositories/{id}`: Get repository details.
+- `PUT /repositories/{id}`: Update repository (e.g., rename).
+- `DELETE /repositories/{id}`: Delete a repository.
+
+### Git Smart HTTP
+
+The server implements the standard Git Smart HTTP protocol, allowing standard
+Git clients to interact with hosted repositories.
+
+- `GET /repositories/{id}/info/refs`: Service discovery and reference
+  advertisement.
+- `POST /repositories/{id}/git-upload-pack`: Handles `git fetch` and `git clone`
+  (Logic currently stubbed).
+- `POST /repositories/{id}/git-receive-pack`: Handles `git push`.
+
+### Implementation Details
+
+This implementation deviates from standard directory-based Git servers in
+several key ways:
+
+- **Architecture**: It uses a custom implementation of `go-git`'s
+  `storer.Storer` interface. This abstracts the underlying storage, allowing us
+  to route:
+  - **Objects** (blobs, trees, commits) to **S3** (via `internal/objectstore`).
+  - **References** (branches, tags) to **PostgreSQL** (via
+    `internal/metastore`).
+
+- **Object Storage**:
+  - Objects are stored as "loose objects" in S3 buckets under the key pattern
+    `repositories/{repo}/objects/{hash}`.
+  - The content is stored with the standard Git header (`type size\0`)
+    prepended, allowing for compatibility and inspection.
+  - **Streaming Uploads**: To handle large pushes and avoid memory buffering
+    issues, the server uses the AWS SDK's `feature/s3/manager` Uploader. This
+    enables streaming of packet-line data directly to S3 without needing to seek
+    the input stream.
+
+- **Quirks & Workarounds**:
+  - **Manual Packet-Line Parsing**: During `git-receive-pack`, the server
+    manually delimits the command packet-lines from the packfile data stream.
+    This is necessary to prevent `go-git`'s default behavior from over-buffering
+    or misinterpreting the stream boundaries when piping directly to object
+    storage.
+
+### Limitations
+
+- **No Authentication**: The server is currently unprotected. Anyone can
+  read/write to any repository.
+- **Incomplete Storer Implementation**:
+  - `IterEncodedObjects` is not yet implemented. This limits operations that
+    require full object traversal, such as garbage collection or complete
+    packfile generation for clones.
+  - Configuration, Index, and Shallow storage methods are currently stubs.
+- **No Packing**: Objects are stored strictly as loose objects. There is no
+  support for generating or storing packfiles (.pack/.idx) for storage
+  optimization.
 
 ## Ceph
 
