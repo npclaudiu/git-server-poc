@@ -1,30 +1,40 @@
 # Git Server PoC
 
-> Disclaimer: This project is an experiment in an early stage of development
-> and there is no intent to make it production-ready. The documentation is
+> Disclaimer: This project is an experiment in an early stage of development and
+> there is no intent to make it production-ready. The documentation is
 > incomplete and the code is subject to change.
 
 ## Introduction
 
-This project is an experimental sandbox that implements a custom Git server in
-Go. It speaks the "Smart HTTP" protocol (`git-receive-pack`, `git-upload-pack`)
-to standard Git clients. Unlike traditional Git server implementations that rely
-on file-system-based `bare` repositories, this server decouples the storage
-layer to enable cloud-native scalability and advanced analysis:
+This project is a Proof of Concept implementation of a custom Git server written
+in Go, designed to explore cloud-native storage architectures for high-scale
+version control systems. It leverages the
+[`go-git`](https://github.com/go-git/go-git) library to implement the Git Smart
+HTTP protocol (`git-receive-pack`, `git-upload-pack`), enabling seamless
+interaction with standard Git clients. Extensive testing is continuously
+performed to ensure that the implementation is compatible with the de facto Git
+implementation.
 
-- **Object Storage (Ceph)**: Git objects (blobs, trees, commits) are ingested,
-content-addressed, and stored in an S3-compatible object store.
-- **Metadata (PostgreSQL)**: Repository metadata, references (branches, tags),
-and access controls are managed in a relational database.
+Unlike traditional Git server implementations that rely on file-system-based
+"bare" repositories, this server abstracts data persistence through custom
+storage interfaces, routing data to specialized systems:
 
-It serves as a proof-of-concept for solving the "Small File Problem" in object
-storage by implementing a decoupling layer between Git protocols and standard
-cloud storage. Instead of writing loose Git objects directly to disk, this
-system acts as a smart packer. It plans to explore the use of FastCDC and Merkle
-Tree traversal to validate, deduplicate, and persist data.
+- **Object Storage (S3/Ceph)**: Git objects (blobs, trees, commits) are
+  content-addressed and stored in an S3-compatible object store. This approach
+  addresses scalability challenges associated with massive file counts (the
+  "Small File Problem") by treating Git objects as immutable data blobs.
+- **Relational Metadata (PostgreSQL)**: Mutable repository data, such as
+  references (branches, tags) and access control lists, are managed in a
+  relational database to ensure transactional consistency and efficient
+  queryability.
 
-This project was created during winter holidays of 2025-2026 using Google Gemini
-and Google Antigravity.
+This architecture allows for independent scaling of storage and compute
+resources, as well as advanced data analysis opportunities such as global
+deduplication (e.g., via FastCDC) and Merkle Tree validation. The project serves
+as an experimental sandbox to validate these patterns against standard Git
+workloads.
+
+Developed with [Gemini Code Assist](https://codeassist.google/).
 
 ## Quick Start
 
@@ -63,7 +73,7 @@ make debug
 Alternatively, you can run it from an IDE in debug mode. VSCode configs are
 already included.
 
-## HTTP Server & Protocol
+## Application Structure
 
 ### REST API
 
