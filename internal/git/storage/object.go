@@ -100,7 +100,81 @@ func (s *ObjectStorage) EncodedObject(t plumbing.ObjectType, h plumbing.Hash) (p
 }
 
 func (s *ObjectStorage) IterEncodedObjects(t plumbing.ObjectType) (storer.EncodedObjectIter, error) {
-	return nil, nil // Empty iterator?
+	prefix := fmt.Sprintf("repositories/%s/objects/", s.repoName)
+	keys, err := s.os.List(context.Background(), prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	return &EncodedObjectIter{
+		s:    s,
+		t:    t,
+		keys: keys,
+		pos:  0,
+	}, nil
+}
+
+type EncodedObjectIter struct {
+	s    *ObjectStorage
+	t    plumbing.ObjectType
+	keys []string
+	pos  int
+}
+
+func (iter *EncodedObjectIter) Next() (plumbing.EncodedObject, error) {
+	for iter.pos < len(iter.keys) {
+		key := iter.keys[iter.pos]
+		iter.pos++
+
+		// Key format: repositories/<repo>/objects/<hash>
+		parts := strings.Split(key, "/")
+		if len(parts) == 0 {
+			continue
+		}
+		hashStr := parts[len(parts)-1]
+		if hashStr == "" {
+			continue
+		}
+
+		h := plumbing.NewHash(hashStr)
+		obj, err := iter.s.EncodedObject(plumbing.AnyObject, h)
+		if err != nil {
+			// If we can't read an object in the list, we skip or error?
+			// Let's logic: if it's corrupt, we might want to know, but for iteration, maybe skip?
+			// Standard behavior involves returning error if repository is corrupt.
+			return nil, err
+		}
+
+		if iter.t != plumbing.AnyObject && obj.Type() != iter.t {
+			continue
+		}
+
+		return obj, nil
+	}
+	return nil, io.EOF
+}
+
+func (iter *EncodedObjectIter) ForEach(cb func(plumbing.EncodedObject) error) error {
+	for {
+		obj, err := iter.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := cb(obj); err != nil {
+			if err == storer.ErrStop {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+func (iter *EncodedObjectIter) Close() {
+	iter.keys = nil
+	iter.pos = 0
 }
 
 func (s *ObjectStorage) HasEncodedObject(h plumbing.Hash) error {

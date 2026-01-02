@@ -6,7 +6,7 @@
 
 ## Introduction
 
-This project is a Proof of Concept implementation of a custom Git server written
+This project is a proof of concept implementation of a custom Git server written
 in Go, designed to explore cloud-native storage architectures for high-scale
 version control systems. It leverages the
 [`go-git`](https://github.com/go-git/go-git) library to implement the Git Smart
@@ -127,15 +127,20 @@ This abstracts the underlying storage, allowing us to route:
   necessary to prevent `go-git`'s default behavior from over-buffering or
   misinterpreting the stream boundaries when piping directly to object storage.
 
+### Persistence
+
+The server now implements persistence for repository state in S3-compatible storage:
+
+- **Objects**: Stored as `repositories/{repo}/objects/{hash}`.
+- **Config**: Repository configuration is stored at `repositories/{repo}/config`.
+- **Shallow Commits**: Shallow commit hashes are stored at `repositories/{repo}/shallow`.
+- **Index**: The staging area (index) is stored at `repositories/{repo}/index`.
+
 ### Limitations
 
 - **No Authentication**: The server is currently unprotected. Anyone can
   read/write to any repository.
-- **Incomplete Storer Implementation**:
-  - `IterEncodedObjects` is not yet implemented. This limits operations that
-    require full object traversal, such as garbage collection or complete
-    packfile generation for clones.
-  - Configuration, Index, and Shallow storage methods are currently stubs.
+- **Performance**: `IterEncodedObjects` (used for GC and some clones) lists keys via S3 API, which may be slow for large repositories.
 - **No Packing**: Objects are stored strictly as loose objects. There is no
   support for generating or storing packfiles (.pack/.idx) for storage
   optimization.

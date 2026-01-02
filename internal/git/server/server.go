@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -18,11 +17,6 @@ import (
 	"github.com/npclaudiu/git-server-poc/internal/metastore"
 	"github.com/npclaudiu/git-server-poc/internal/objectstore"
 )
-
-type bufReadCloser struct {
-	*bufio.Reader
-	io.Closer
-}
 
 type GitHandler struct {
 	ms *metastore.MetaStore

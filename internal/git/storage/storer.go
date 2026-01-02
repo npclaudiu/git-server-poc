@@ -20,9 +20,9 @@ func NewStorer(os *objectstore.ObjectStore, ms *metastore.MetaStore, repoName st
 	return &Storer{
 		ObjectStorage:    &ObjectStorage{os: os, repoName: repoName},
 		ReferenceStorage: &ReferenceStorage{ms: ms, repoName: repoName},
-		ShallowStorage:   &ShallowStorage{},
-		ConfigStorage:    &ConfigStorage{},
-		IndexStorage:     &IndexStorage{},
+		ShallowStorage:   &ShallowStorage{os: os, repoName: repoName},
+		ConfigStorage:    &ConfigStorage{os: os, repoName: repoName},
+		IndexStorage:     &IndexStorage{os: os, repoName: repoName},
 	}
 }
 
