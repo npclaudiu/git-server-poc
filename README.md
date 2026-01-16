@@ -1,42 +1,42 @@
 # Git Server PoC
 
-> Disclaimer: This project is an experiment in an early stage of development and
-> there is no intent to make it production-ready. The documentation might be
-> incomplete and the code is subject to change.
+> Disclaimer: This project is an experiment and
+> there is no intent to make it production-ready.
 
 ## Introduction
 
 This project is a proof of concept implementation of a custom Git server written
-in Go, designed to explore cloud-native storage architectures for high-scale
-version control systems. It leverages the
+in Go, designed to explore how to create a Git server. It relies on the
 [`go-git`](https://github.com/go-git/go-git) library to implement the Git Smart
-HTTP protocol (`git-receive-pack`, `git-upload-pack`), enabling seamless
-interaction with standard Git clients. Extensive testing is continuously
-performed to ensure that the implementation is compatible with the de facto Git
-implementation.
+HTTP protocol (`git-receive-pack`, `git-upload-pack`). Tested to ensure that the
+implementation is compatible with the de facto Git implementation.
 
 Unlike traditional Git server implementations that rely on file-system-based
 "bare" repositories, this server abstracts data persistence through custom
 storage interfaces, routing data to specialized systems:
 
-- **Object Storage (Ceph RGW)**: Git objects (blobs, trees, commits) are
+**Object Storage (Ceph RGW)**: Git objects (blobs, trees, commits) are
   content-addressed and stored in an S3-compatible object store. This approach
   addresses scalability challenges associated with massive file counts (the
   "Small File Problem") by treating Git objects as immutable data blobs.
-- **Relational Metadata (PostgreSQL)**: Mutable repository data, such as
-  references (branches, tags) and access control lists, are managed in a
-  relational database to ensure transactional consistency and efficient
-  queryability.
 
-This architecture allows for independent scaling of storage and compute
-resources, as well as advanced data analysis opportunities such as global
-deduplication (e.g., via FastCDC) and Merkle Tree validation. The project serves
-as an experimental sandbox to validate these patterns against standard Git
-workloads.
+**Relational Metadata (PostgreSQL)**: Mutable repository data, such as
+  references (branches, tags), are managed in a
+  relational database to ensure transactional consistency while queries
+  remain efficient.
+
+This project serves as an experimental sandbox to validate patterns such as FastCDC for deduplication
+and Merkle Tree validation against standard Git workloads.
+
+**Note**: This repository is also meant as a reference implementation for myself and attempts to document other things that I found useful when working on this project.
 
 Developed with [Gemini Code Assist](https://codeassist.google/).
 
 ## Quick Start
+
+The development environment is bootstrapped by a rather hacky set of scripts
+contained in the `devenv` directory. For anything serious, I would recommend
+using a more robust build system such as [Bazel](https://bazel.build/).
 
 ### Prerequisites
 
@@ -103,22 +103,21 @@ several key ways:
 
 #### **Architecture**
 
-It uses a custom implementation of `go-git`'s `storer.Storer` interface.
-This abstracts the underlying storage, allowing us to route:
+It uses a custom implementation of `go-git`'s `storer.Storer` interface. This
+abstracts the underlying storage, allowing us to route:
 
 - **Objects** (blobs, trees, commits) to **Ceph** (via `internal/objectstore`).
 - **References** (branches, tags) to **PostgreSQL** (via `internal/metastore`).
 
 #### **Object Storage**
 
-- Objects are stored as "loose objects" in S3-compatible Ceph buckets under
-    the key pattern `repositories/{repo}/objects/{hash}`.
-- The content is stored with the standard Git header (`type size\0`)
-    prepended, allowing for compatibility and inspection.
+- Objects are stored as "loose objects" in S3-compatible Ceph buckets under the
+    key pattern `repositories/{repo}/objects/{hash}`.
+- The content is stored with the standard Git header (`type size\0`) prepended,
+    allowing for compatibility and inspection.
 - **Streaming Uploads**: To handle large pushes and avoid memory buffering
-    issues, the server uses the AWS SDK's S3 Uploader. This enables streaming
-    of packet-line data directly to Ceph without needing to seek the input
-    stream.
+    issues, the server uses the AWS SDK's S3 Uploader. This enables streaming of
+    packet-line data directly to Ceph without needing to seek the input stream.
 
 #### **Quirks & Workarounds**
 
@@ -129,18 +128,22 @@ This abstracts the underlying storage, allowing us to route:
 
 ### Persistence
 
-The server now implements persistence for repository state in S3-compatible storage:
+The server now implements persistence for repository state in S3-compatible
+storage:
 
 - **Objects**: Stored as `repositories/{repo}/objects/{hash}`.
-- **Config**: Repository configuration is stored at `repositories/{repo}/config`.
-- **Shallow Commits**: Shallow commit hashes are stored at `repositories/{repo}/shallow`.
+- **Config**: Repository configuration is stored at
+  `repositories/{repo}/config`.
+- **Shallow Commits**: Shallow commit hashes are stored at
+  `repositories/{repo}/shallow`.
 - **Index**: The staging area (index) is stored at `repositories/{repo}/index`.
 
 ### Limitations
 
 - **No Authentication**: The server is currently unprotected. Anyone can
   read/write to any repository.
-- **Performance**: `IterEncodedObjects` (used for GC and some clones) lists keys via S3 API, which may be slow for large repositories.
+- **Performance**: `IterEncodedObjects` (used for GC and some clones) lists keys
+  via S3 API, which may be slow for large repositories.
 - **No Packing**: Objects are stored strictly as loose objects. There is no
   support for generating or storing packfiles (.pack/.idx) for storage
   optimization.
@@ -270,5 +273,5 @@ make ms-gen
 
 __
 
-Copyright © 2026, Claudiu Nedelcu. All rights reserved.
-Licensed under the [MIT License](LICENSE.txt).
+Copyright © 2026, Claudiu Nedelcu. All rights reserved. Licensed under the [MIT
+License](LICENSE.txt).

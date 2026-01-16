@@ -60,8 +60,6 @@ func New(cfg *config.Config, ms *metastore.MetaStore, os *objectstore.ObjectStor
 	return s
 }
 
-// ... existing code ...
-
 func (s *Server) handleGitInfoRefs(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "repository_id")
 	if !isValidRepoName(id) {
@@ -174,8 +172,6 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// Request/Response structs
-
 type CreateRepositoryRequest struct {
 	Name string `json:"name"`
 }
@@ -189,8 +185,6 @@ var validNameRegex = regexp.MustCompile(`^[a-z0-9\-_]+$`)
 func isValidRepoName(name string) bool {
 	return validNameRegex.MatchString(name)
 }
-
-// Handlers
 
 func (s *Server) handleCreateRepository(w http.ResponseWriter, r *http.Request) {
 	var req CreateRepositoryRequest

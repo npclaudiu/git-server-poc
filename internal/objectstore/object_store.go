@@ -27,17 +27,8 @@ type Options struct {
 }
 
 func New(ctx context.Context, opts Options) (*ObjectStore, error) {
-	resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		return aws.Endpoint{
-			URL:               opts.Endpoint,
-			SigningRegion:     region,
-			HostnameImmutable: true,
-		}, nil
-	})
-
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(opts.Region),
-		config.WithEndpointResolverWithOptions(resolver),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(opts.AccessKey, opts.SecretKey, "")),
 	)
 
@@ -46,6 +37,9 @@ func New(ctx context.Context, opts Options) (*ObjectStore, error) {
 	}
 
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if opts.Endpoint != "" {
+			o.BaseEndpoint = aws.String(opts.Endpoint)
+		}
 		o.UsePathStyle = true
 		o.Retryer = aws.NopRetryer{}
 	})

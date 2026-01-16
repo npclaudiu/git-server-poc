@@ -23,6 +23,10 @@ clean:
 test:
 	go test ./...
 
+.PHONY: smoke-test
+smoke-test:
+	go test -v -count=1 ./tests/smoke/...
+
 .PHONY: format
 format:
 	go fmt ./...
