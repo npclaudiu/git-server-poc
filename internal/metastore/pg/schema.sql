@@ -124,12 +124,3 @@ ALTER TABLE ONLY public.refs
 --
 
 -- \unrestrict CJZAnE8wfOyiNGWX6cyEL08c0wKeDbpSzwebRKhWVpiPorpFnOZtK5fgj0lcuzK
-
-
---
--- Dbmate schema migrations
---
-
-INSERT INTO public.schema_migrations (version) VALUES
-    ('20251230232400'),
-    ('20260101');
