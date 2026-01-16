@@ -1,15 +1,15 @@
 # Git Server PoC
 
-> Disclaimer: This project is an experiment and
-> there is no intent to make it production-ready.
+> Disclaimer: This project is an experiment and there is no intent to make it
+> production-ready.
 
 ## Introduction
 
-This project is a proof of concept implementation of a custom Git server written
-in Go, designed to explore how to create a Git server. It relies on the
-[`go-git`](https://github.com/go-git/go-git) library to implement the Git Smart
-HTTP protocol (`git-receive-pack`, `git-upload-pack`). Tested to ensure that the
-implementation is compatible with the de facto Git implementation.
+This project is a proof of concept implementation of a custom Git server. It is
+written in Go and relies on the [`go-git`](https://github.com/go-git/go-git)
+library to implement the Git Smart HTTP protocol (`git-receive-pack`,
+`git-upload-pack`). Tested to ensure that the implementation is compatible with
+the de facto Git implementation.
 
 Unlike traditional Git server implementations that rely on file-system-based
 "bare" repositories, this server abstracts data persistence through custom
@@ -21,14 +21,16 @@ storage interfaces, routing data to specialized systems:
   "Small File Problem") by treating Git objects as immutable data blobs.
 
 **Relational Metadata (PostgreSQL)**: Mutable repository data, such as
-  references (branches, tags), are managed in a
-  relational database to ensure transactional consistency while queries
-  remain efficient.
+  references (branches, tags), are managed in a relational database to ensure
+  transactional consistency while queries remain efficient.
 
-This project serves as an experimental sandbox to validate patterns such as FastCDC for deduplication
-and Merkle Tree validation against standard Git workloads.
+This project serves as an experimental sandbox for exploring ideas such as
+the ones listed below, against standard Git workloads:
 
-**Note**: This repository is also meant as a reference implementation for myself and attempts to document other things that I found useful when working on this project.
+- [x] Implementing the Git/HTTP protocol with custom storage backends
+- [ ] Using FastCDC for object data deduplication
+- [ ] Using Merkle Trees for a multi-generational append-only object store
+- [ ] Using swappable object and metadata stores
 
 Developed with [Gemini Code Assist](https://codeassist.google/).
 
@@ -36,7 +38,7 @@ Developed with [Gemini Code Assist](https://codeassist.google/).
 
 The development environment is bootstrapped by a rather hacky set of scripts
 contained in the `devenv` directory. For anything serious, I would recommend
-using a more robust build system such as [Bazel](https://bazel.build/).
+using a more robust build system such as [Bazel](https://bazel.build/) instead.
 
 ### Prerequisites
 
@@ -92,8 +94,7 @@ Git clients to interact with hosted repositories.
 
 - `GET /repositories/{id}/info/refs`: Service discovery and reference
   advertisement.
-- `POST /repositories/{id}/git-upload-pack`: Handles `git fetch` and `git clone`
-  (Logic currently stubbed).
+- `POST /repositories/{id}/git-upload-pack`: Handles `git fetch` and `git clone`.
 - `POST /repositories/{id}/git-receive-pack`: Handles `git push`.
 
 ### Implementation Details
@@ -101,15 +102,15 @@ Git clients to interact with hosted repositories.
 This implementation deviates from standard directory-based Git servers in
 several key ways:
 
-#### **Architecture**
+#### Architecture
 
-It uses a custom implementation of `go-git`'s `storer.Storer` interface. This
+It uses a custom implementation of `go-git`'s `Storer` interface. This
 abstracts the underlying storage, allowing us to route:
 
 - **Objects** (blobs, trees, commits) to **Ceph** (via `internal/objectstore`).
 - **References** (branches, tags) to **PostgreSQL** (via `internal/metastore`).
 
-#### **Object Storage**
+#### Object Storage
 
 - Objects are stored as "loose objects" in S3-compatible Ceph buckets under the
     key pattern `repositories/{repo}/objects/{hash}`.
@@ -119,7 +120,7 @@ abstracts the underlying storage, allowing us to route:
     issues, the server uses the AWS SDK's S3 Uploader. This enables streaming of
     packet-line data directly to Ceph without needing to seek the input stream.
 
-#### **Quirks & Workarounds**
+#### Quirks & Workarounds
 
 - **Manual Packet-Line Parsing**: During `git-receive-pack`, the server manually
   delimits the command packet-lines from the packfile data stream. This is
