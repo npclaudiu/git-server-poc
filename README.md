@@ -53,7 +53,7 @@ using a more robust build system such as [Bazel](https://bazel.build/) instead.
 ### Setup
 
 ```bash
-make devenv
+make devenv-up
 ```
 
 This command will set up a Docker environment with
